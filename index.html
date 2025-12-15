@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vision Drone Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        
+        #main-canvas {
+            display: block;
+        }
+        
+        #drone-cam {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            height: 240px;
+            border: 3px solid #00ff00;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        #drone-cam-label {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            color: #00ff00;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff00;
+            z-index: 10;
+        }
+        
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #00ff00;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #00ff00;
+        }
+        
+        #hud h3 {
+            margin-bottom: 10px;
+            color: #00ff00;
+        }
+        
+        #hud .stat {
+            margin: 5px 0;
+        }
+        
+        #controls-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #ffffff;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        
+        #controls-info h4 {
+            margin-bottom: 10px;
+            color: #00aaff;
+        }
+        
+        #controls-info .key {
+            display: inline-block;
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 5px;
+            border: 1px solid #555;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ff00;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top-color: #00ff00;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        Loading Drone Simulator...
+    </div>
+    
+    <canvas id="drone-cam"></canvas>
+    <div id="drone-cam-label">📹 DRONE CAM</div>
+    
+    <div id="hud">
+        <h3>🚁 DRONE TELEMETRY</h3>
+        <div class="stat">Altitude: <span id="altitude">0</span> m</div>
+        <div class="stat">Speed: <span id="speed">0</span> m/s</div>
+        <div class="stat">Position: <span id="position">0, 0</span></div>
+        <div class="stat">Heading: <span id="heading">0</span>°</div>
+    </div>
+    
+    <div id="controls-info">
+        <h4>🎮 CONTROLS</h4>
+        <div><span class="key">W</span> Forward</div>
+        <div><span class="key">S</span> Backward</div>
+        <div><span class="key">A</span> Strafe Left</div>
+        <div><span class="key">D</span> Strafe Right</div>
+        <div><span class="key">Q</span> Rotate Left</div>
+        <div><span class="key">E</span> Rotate Right</div>
+        <div><span class="key">Space</span> Ascend</div>
+        <div><span class="key">Shift</span> Descend</div>
+        <div><span class="key">R</span> Reset Position</div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
