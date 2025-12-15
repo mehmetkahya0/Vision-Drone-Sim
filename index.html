@@ -75,6 +75,37 @@
             border: 1px solid #00ff00;
         }
         
+        #detection-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ff6600;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #ff6600;
+            max-height: 200px;
+            overflow-y: auto;
+            min-width: 150px;
+        }
+        
+        #detection-info h4 {
+            margin-bottom: 8px;
+            color: #ff6600;
+        }
+        
+        #detection-info .detection-item {
+            margin: 3px 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        #detection-info .detection-count {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
         #hud h3 {
             margin-bottom: 10px;
             color: #00ff00;
@@ -144,6 +175,12 @@
     <canvas id="drone-cam"></canvas>
     <div id="drone-cam-label">📹 DRONE CAM</div>
     
+    <div id="detection-info">
+        <h4>🎯 YOLO DETECTION</h4>
+        <div id="detection-status">Loading model...</div>
+        <div id="detection-list"></div>
+    </div>
+    
     <div id="hud">
         <h3>🚁 DRONE TELEMETRY</h3>
         <div class="stat">Altitude: <span id="altitude">0</span> m</div>
@@ -164,6 +201,8 @@
         <div><span class="key">Shift</span> Descend</div>
         <div><span class="key">R</span> Reset Position</div>
         <div><span class="key">C</span> Toggle Drone Cam</div>
+        <div><span class="key">L</span> Toggle Headlight</div>
+        <div><span class="key">M</span> Change Environment</div>
     </div>
 
     <script type="importmap">
@@ -175,6 +214,10 @@
         }
     }
     </script>
+    
+    <!-- TensorFlow.js and COCO-SSD for object detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     
     <!-- Google 3D Tiles Loader -->
     <script type="module" src="js/main.js"></script>

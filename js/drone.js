@@ -218,9 +218,73 @@ export class Drone {
         const redLight = new THREE.PointLight(0xff0000, 0.5, 5);
         redLight.position.set(0, 0, -1);
         this.mesh.add(redLight);
+        
+        // Headlight / Spotlight (flashlight style)
+        this.headlightOn = false;
+        
+        // Main spotlight - powerful beam
+        this.spotlight = new THREE.SpotLight(0xffffff, 0, 150, Math.PI / 8, 0.3, 1.5);
+        this.spotlight.position.set(0, -0.6, 1.3);
+        this.spotlight.castShadow = true;
+        this.spotlight.shadow.mapSize.width = 1024;
+        this.spotlight.shadow.mapSize.height = 1024;
+        this.spotlight.shadow.camera.near = 1;
+        this.spotlight.shadow.camera.far = 100;
+        this.mesh.add(this.spotlight);
+        
+        // Spotlight target
+        this.spotlightTarget = new THREE.Object3D();
+        this.spotlightTarget.position.set(0, -20, 50);
+        this.mesh.add(this.spotlightTarget);
+        this.spotlight.target = this.spotlightTarget;
+        
+        // Secondary fill light for realistic effect
+        this.fillLight = new THREE.SpotLight(0xffffee, 0, 80, Math.PI / 5, 0.5, 2);
+        this.fillLight.position.set(0, -0.6, 1.3);
+        this.mesh.add(this.fillLight);
+        this.fillLight.target = this.spotlightTarget;
+        
+        // Headlight housing/lens mesh
+        const headlightHousingGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.15, 16);
+        const headlightHousingMat = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const headlightHousing = new THREE.Mesh(headlightHousingGeo, headlightHousingMat);
+        headlightHousing.rotation.x = Math.PI / 2;
+        headlightHousing.position.set(0, -0.6, 1.45);
+        this.mesh.add(headlightHousing);
+        
+        // Headlight lens
+        this.headlightLensGeo = new THREE.CircleGeometry(0.16, 16);
+        this.headlightLensMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        this.headlightLens = new THREE.Mesh(this.headlightLensGeo, this.headlightLensMat);
+        this.headlightLens.position.set(0, -0.6, 1.53);
+        this.mesh.add(this.headlightLens);
 
         this.mesh.castShadow = true;
         this.scene.add(this.mesh);
+    }
+    
+    toggleHeadlight() {
+        this.headlightOn = !this.headlightOn;
+        
+        if (this.headlightOn) {
+            // Turn on - bright flashlight effect
+            this.spotlight.intensity = 8;
+            this.fillLight.intensity = 3;
+            this.headlightLensMat.color.setHex(0xffffee);
+            this.headlightLensMat.emissive = new THREE.Color(0xffffee);
+        } else {
+            // Turn off
+            this.spotlight.intensity = 0;
+            this.fillLight.intensity = 0;
+            this.headlightLensMat.color.setHex(0x333333);
+            this.headlightLensMat.emissive = new THREE.Color(0x000000);
+        }
+        
+        return this.headlightOn;
     }
 
     update(delta) {

@@ -3,6 +3,8 @@ export class Controls {
         this.drone = drone;
         this.keys = {};
         this.onToggleDroneCam = null; // Callback for drone cam toggle
+        this.onToggleHeadlight = null; // Callback for headlight toggle
+        this.onSwitchEnvironment = null; // Callback for environment switch
         
         this.setupEventListeners();
     }
@@ -15,6 +17,22 @@ export class Controls {
             if (e.code === 'KeyC') {
                 if (this.onToggleDroneCam) {
                     this.onToggleDroneCam();
+                }
+                e.preventDefault();
+            }
+            
+            // Toggle headlight
+            if (e.code === 'KeyL') {
+                if (this.onToggleHeadlight) {
+                    this.onToggleHeadlight();
+                }
+                e.preventDefault();
+            }
+            
+            // Switch environment/map
+            if (e.code === 'KeyM') {
+                if (this.onSwitchEnvironment) {
+                    this.onSwitchEnvironment();
                 }
                 e.preventDefault();
             }
