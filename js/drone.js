@@ -7,16 +7,16 @@ export class Drone {
         this.angularVelocity = 0;
         this.propellerSpeed = 0;
         
-        // Improved physics settings
-        this.maxSpeed = 60;
-        this.maxVerticalSpeed = 25;
-        this.acceleration = 40;
-        this.deceleration = 0.92;
-        this.airResistance = 0.98;
-        this.rotationSpeed = 2.5;
-        this.rotationDamping = 0.9;
-        this.verticalAcceleration = 35;
-        this.gravity = 12;
+        // Improved physics settings - FAST DRONE
+        this.maxSpeed = 120;
+        this.maxVerticalSpeed = 50;
+        this.acceleration = 80;
+        this.deceleration = 0.94;
+        this.airResistance = 0.985;
+        this.rotationSpeed = 3.5;
+        this.rotationDamping = 0.92;
+        this.verticalAcceleration = 60;
+        this.gravity = 15;
         this.minAltitude = 2;
         this.maxAltitude = 500;
         
@@ -337,32 +337,28 @@ export class Drone {
     }
 
     applyForce(direction, delta) {
-        const forward = new THREE.Vector3(0, 0, 1);
-        forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.mesh.rotation.y);
+        // Optimized: reuse vectors, cache sin/cos
+        const yaw = this.mesh.rotation.y;
+        const cosYaw = Math.cos(yaw);
+        const sinYaw = Math.sin(yaw);
         
-        const right = new THREE.Vector3(1, 0, 0);
-        right.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.mesh.rotation.y);
-
-        const force = new THREE.Vector3();
+        // Calculate world-space force from local direction
+        const localForceX = direction.x * this.acceleration * delta;
+        const localForceZ = direction.z * this.acceleration * delta;
         
-        // Acceleration varies with altitude (thinner air = less control at high altitude)
-        const altitudeFactor = Math.max(0.5, 1 - (this.mesh.position.y / this.maxAltitude) * 0.5);
-        const currentAcceleration = this.acceleration * altitudeFactor;
-
-        if (direction.z !== 0) {
-            force.add(forward.clone().multiplyScalar(direction.z * currentAcceleration * delta));
-        }
-        if (direction.x !== 0) {
-            force.add(right.clone().multiplyScalar(direction.x * currentAcceleration * delta * 0.8)); // Strafe slightly slower
-        }
-
-        this.velocity.add(force);
+        // Transform to world space (rotation around Y axis)
+        const worldForceX = localForceX * cosYaw + localForceZ * sinYaw;
+        const worldForceZ = -localForceX * sinYaw + localForceZ * cosYaw;
+        
+        this.velocity.x += worldForceX;
+        this.velocity.z += worldForceZ;
         this.isThrottleActive = true;
 
-        // Clamp horizontal speed with smooth limiting
-        const horizontalSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-        if (horizontalSpeed > this.maxSpeed) {
-            const scale = this.maxSpeed / horizontalSpeed;
+        // Clamp horizontal speed
+        const horizontalSpeedSq = this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z;
+        const maxSpeedSq = this.maxSpeed * this.maxSpeed;
+        if (horizontalSpeedSq > maxSpeedSq) {
+            const scale = this.maxSpeed / Math.sqrt(horizontalSpeedSq);
             this.velocity.x *= scale;
             this.velocity.z *= scale;
         }

@@ -17,7 +17,7 @@ class DroneSimulator {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.toneMappingExposure = 1.5;
         document.body.appendChild(this.renderer.domElement);
         this.renderer.domElement.id = 'main-canvas';
 
@@ -63,6 +63,10 @@ class DroneSimulator {
 
         // Controls
         this.controls = new Controls(this.drone);
+        
+        // Drone cam fullscreen toggle
+        this.droneCamFullscreen = false;
+        this.controls.onToggleDroneCam = () => this.toggleDroneCamFullscreen();
 
         // Camera follow settings - behind the drone
         this.cameraOffset = new THREE.Vector3(0, 12, -35); // Negative Z = behind drone
@@ -90,16 +94,16 @@ class DroneSimulator {
     }
 
     setupLighting() {
-        // Ambient light
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        // Ambient light - brighter
+        const ambientLight = new THREE.AmbientLight(0x606060, 1.2);
         this.scene.add(ambientLight);
 
-        // Hemisphere light for natural sky lighting
-        const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x545454, 0.6);
+        // Hemisphere light for natural sky lighting - brighter
+        const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x606060, 1.0);
         this.scene.add(hemiLight);
 
-        // Main directional light (sun)
-        this.sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        // Main directional light (sun) - brighter
+        this.sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
         this.sunLight.position.set(100, 200, 100);
         this.sunLight.castShadow = true;
         this.sunLight.shadow.mapSize.width = 2048;
@@ -111,6 +115,37 @@ class DroneSimulator {
         this.sunLight.shadow.camera.top = 200;
         this.sunLight.shadow.camera.bottom = -200;
         this.scene.add(this.sunLight);
+    }
+
+    toggleDroneCamFullscreen() {
+        this.droneCamFullscreen = !this.droneCamFullscreen;
+        
+        const canvas = document.getElementById('drone-cam');
+        const label = document.getElementById('drone-cam-label');
+        
+        if (this.droneCamFullscreen) {
+            canvas.classList.add('fullscreen');
+            label.classList.add('fullscreen');
+            label.textContent = '📹 DRONE CAM (Press C to exit)';
+            
+            // Update render target for fullscreen
+            this.droneCamCanvas.width = window.innerWidth;
+            this.droneCamCanvas.height = window.innerHeight;
+            this.droneCamRenderTarget.setSize(window.innerWidth, window.innerHeight);
+            this.droneCamera.aspect = window.innerWidth / window.innerHeight;
+            this.droneCamera.updateProjectionMatrix();
+        } else {
+            canvas.classList.remove('fullscreen');
+            label.classList.remove('fullscreen');
+            label.textContent = '📹 DRONE CAM';
+            
+            // Reset to default size
+            this.droneCamCanvas.width = 320;
+            this.droneCamCanvas.height = 240;
+            this.droneCamRenderTarget.setSize(320, 240);
+            this.droneCamera.aspect = 320 / 240;
+            this.droneCamera.updateProjectionMatrix();
+        }
     }
 
     updateCamera() {
@@ -157,21 +192,25 @@ class DroneSimulator {
         this.renderer.render(this.scene, this.droneCamera);
         this.renderer.setRenderTarget(null);
 
+        // Get current canvas size (dynamic for fullscreen)
+        const width = this.droneCamCanvas.width;
+        const height = this.droneCamCanvas.height;
+
         // Read pixels and draw to canvas
-        const pixelBuffer = new Uint8Array(320 * 240 * 4);
+        const pixelBuffer = new Uint8Array(width * height * 4);
         this.renderer.readRenderTargetPixels(
             this.droneCamRenderTarget,
-            0, 0, 320, 240,
+            0, 0, width, height,
             pixelBuffer
         );
 
-        const imageData = this.droneCamCtx.createImageData(320, 240);
+        const imageData = this.droneCamCtx.createImageData(width, height);
         
         // Flip vertically while copying
-        for (let y = 0; y < 240; y++) {
-            for (let x = 0; x < 320; x++) {
-                const srcIdx = ((239 - y) * 320 + x) * 4;
-                const dstIdx = (y * 320 + x) * 4;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const srcIdx = ((height - 1 - y) * width + x) * 4;
+                const dstIdx = (y * width + x) * 4;
                 imageData.data[dstIdx] = pixelBuffer[srcIdx];
                 imageData.data[dstIdx + 1] = pixelBuffer[srcIdx + 1];
                 imageData.data[dstIdx + 2] = pixelBuffer[srcIdx + 2];
@@ -181,19 +220,21 @@ class DroneSimulator {
         
         this.droneCamCtx.putImageData(imageData, 0, 0);
 
-        // Add scan line effect
-        this.droneCamCtx.fillStyle = 'rgba(0, 255, 0, 0.03)';
-        for (let i = 0; i < 240; i += 2) {
-            this.droneCamCtx.fillRect(0, i, 320, 1);
+        // Add scan line effect (only in small mode for performance)
+        if (!this.droneCamFullscreen) {
+            this.droneCamCtx.fillStyle = 'rgba(0, 255, 0, 0.03)';
+            for (let i = 0; i < height; i += 2) {
+                this.droneCamCtx.fillRect(0, i, width, 1);
+            }
         }
 
         // Add timestamp overlay
         this.droneCamCtx.fillStyle = '#00ff00';
-        this.droneCamCtx.font = '10px monospace';
+        this.droneCamCtx.font = this.droneCamFullscreen ? '16px monospace' : '10px monospace';
         const now = new Date();
         this.droneCamCtx.fillText(
             `REC ● ${now.toLocaleTimeString()}`,
-            10, 230
+            10, height - 10
         );
     }
 

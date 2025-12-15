@@ -2,6 +2,7 @@ export class Controls {
     constructor(drone) {
         this.drone = drone;
         this.keys = {};
+        this.onToggleDroneCam = null; // Callback for drone cam toggle
         
         this.setupEventListeners();
     }
@@ -9,6 +10,14 @@ export class Controls {
     setupEventListeners() {
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
+            
+            // Toggle drone cam fullscreen
+            if (e.code === 'KeyC') {
+                if (this.onToggleDroneCam) {
+                    this.onToggleDroneCam();
+                }
+                e.preventDefault();
+            }
             
             // Prevent default for game controls
             if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR', 'ShiftLeft', 'ShiftRight'].includes(e.code)) {
@@ -37,12 +46,12 @@ export class Controls {
             direction.z = -1;
         }
 
-        // Strafe Left/Right
+        // Strafe Left/Right (fixed direction)
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-            direction.x = -1;
+            direction.x = 1;
         }
         if (this.keys['KeyD'] || this.keys['ArrowRight']) {
-            direction.x = 1;
+            direction.x = -1;
         }
 
         // Apply movement
