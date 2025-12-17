@@ -7,7 +7,7 @@ export class Drone {
         this.angularVelocity = 0;
         this.propellerSpeed = 0;
         
-        // Improved physics settings - FAST DRONE
+        // Physics settings
         this.maxSpeed = 120;
         this.maxVerticalSpeed = 50;
         this.acceleration = 80;
@@ -20,16 +20,16 @@ export class Drone {
         this.minAltitude = 2;
         this.maxAltitude = 500;
         
-        // Stability and tilt
+        // Tilt settings
         this.tiltRecovery = 0.03;
-        this.maxTilt = 0.5; // ~28 degrees max bank
-        this.tiltSpeed = 0.12; // How fast drone tilts
+        this.maxTilt = 0.5;
+        this.tiltSpeed = 0.12;
         this.currentTiltX = 0;
         this.currentTiltZ = 0;
         
         // State
         this.isThrottleActive = false;
-        this.targetAltitude = null;
+        this.headlightOn = false;
         
         this.createDrone();
     }
@@ -37,55 +37,37 @@ export class Drone {
     createDrone() {
         this.mesh = new THREE.Group();
 
-        // Main body
-        const bodyGeometry = new THREE.BoxGeometry(3, 0.8, 2);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2a2a2a,
-            metalness: 0.7,
-            roughness: 0.3
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.castShadow = true;
-        body.receiveShadow = true;
+        // === DRONE BODY - All MeshBasicMaterial for visibility ===
+        
+        // Main body (dark gray box)
+        const bodyGeo = new THREE.BoxGeometry(3, 0.8, 2);
+        const bodyMat = new THREE.MeshBasicMaterial({ color: 0x2a2a2a });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
         this.mesh.add(body);
 
         // Top cover
-        const coverGeometry = new THREE.BoxGeometry(2.5, 0.4, 1.5);
-        const coverMaterial = new THREE.MeshStandardMaterial({
-            color: 0x3a3a3a,
-            metalness: 0.5,
-            roughness: 0.4
-        });
-        const cover = new THREE.Mesh(coverGeometry, coverMaterial);
+        const coverGeo = new THREE.BoxGeometry(2.5, 0.4, 1.5);
+        const coverMat = new THREE.MeshBasicMaterial({ color: 0x3a3a3a });
+        const cover = new THREE.Mesh(coverGeo, coverMat);
         cover.position.y = 0.6;
-        cover.castShadow = true;
         this.mesh.add(cover);
 
-        // Camera housing
-        const cameraHousingGeo = new THREE.SphereGeometry(0.4, 16, 16);
-        const cameraHousingMat = new THREE.MeshStandardMaterial({
-            color: 0x1a1a1a,
-            metalness: 0.8,
-            roughness: 0.2
-        });
-        const cameraHousing = new THREE.Mesh(cameraHousingGeo, cameraHousingMat);
-        cameraHousing.position.set(0, -0.5, 1.2);
-        cameraHousing.castShadow = true;
-        this.mesh.add(cameraHousing);
+        // Camera housing (sphere at front bottom)
+        const camHousingGeo = new THREE.SphereGeometry(0.4, 12, 12);
+        const camHousingMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+        const camHousing = new THREE.Mesh(camHousingGeo, camHousingMat);
+        camHousing.position.set(0, -0.5, 1.2);
+        this.mesh.add(camHousing);
 
         // Camera lens
-        const lensGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.2, 16);
-        const lensMat = new THREE.MeshStandardMaterial({
-            color: 0x000033,
-            metalness: 0.9,
-            roughness: 0.1
-        });
+        const lensGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.2, 12);
+        const lensMat = new THREE.MeshBasicMaterial({ color: 0x000066 });
         const lens = new THREE.Mesh(lensGeo, lensMat);
         lens.rotation.x = Math.PI / 2;
         lens.position.set(0, -0.5, 1.5);
         this.mesh.add(lens);
 
-        // Arms and propellers
+        // === ARMS AND PROPELLERS ===
         this.propellers = [];
         const armPositions = [
             { x: 2, z: 1.5 },
@@ -94,78 +76,62 @@ export class Drone {
             { x: -2, z: -1.5 }
         ];
 
+        const armMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+        const motorMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const bladeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
         armPositions.forEach((pos, index) => {
             // Arm
-            const armGeometry = new THREE.BoxGeometry(2, 0.2, 0.3);
-            const armMaterial = new THREE.MeshStandardMaterial({
-                color: 0x444444,
-                metalness: 0.6,
-                roughness: 0.4
-            });
-            const arm = new THREE.Mesh(armGeometry, armMaterial);
-            
+            const armGeo = new THREE.BoxGeometry(2, 0.2, 0.3);
+            const arm = new THREE.Mesh(armGeo, armMat);
             const angle = Math.atan2(pos.z, pos.x);
             arm.position.set(pos.x / 2, 0, pos.z / 2);
             arm.rotation.y = -angle;
-            arm.castShadow = true;
             this.mesh.add(arm);
 
-            // Motor housing
-            const motorGeometry = new THREE.CylinderGeometry(0.3, 0.35, 0.4, 16);
-            const motorMaterial = new THREE.MeshStandardMaterial({
-                color: 0x333333,
-                metalness: 0.7,
-                roughness: 0.3
-            });
-            const motor = new THREE.Mesh(motorGeometry, motorMaterial);
+            // Motor
+            const motorGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.4, 12);
+            const motor = new THREE.Mesh(motorGeo, motorMat);
             motor.position.set(pos.x, 0.2, pos.z);
-            motor.castShadow = true;
             this.mesh.add(motor);
 
-            // Propeller
-            const propellerGroup = new THREE.Group();
-            propellerGroup.position.set(pos.x, 0.5, pos.z);
+            // Propeller group
+            const propGroup = new THREE.Group();
+            propGroup.position.set(pos.x, 0.5, pos.z);
 
-            const bladeGeometry = new THREE.BoxGeometry(1.8, 0.05, 0.2);
-            const bladeMaterial = new THREE.MeshStandardMaterial({
-                color: 0x111111,
-                metalness: 0.3,
-                roughness: 0.7
-            });
-
-            const blade1 = new THREE.Mesh(bladeGeometry, bladeMaterial);
-            const blade2 = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            // Blades
+            const bladeGeo = new THREE.BoxGeometry(1.8, 0.05, 0.2);
+            const blade1 = new THREE.Mesh(bladeGeo, bladeMat);
+            const blade2 = new THREE.Mesh(bladeGeo, bladeMat);
             blade2.rotation.y = Math.PI / 2;
+            propGroup.add(blade1);
+            propGroup.add(blade2);
 
-            propellerGroup.add(blade1);
-            propellerGroup.add(blade2);
-            
-            // Propeller blur disc (visible when spinning fast)
-            const discGeometry = new THREE.CircleGeometry(0.9, 32);
-            const discMaterial = new THREE.MeshBasicMaterial({
+            // Blur disc
+            const discGeo = new THREE.CircleGeometry(0.9, 24);
+            const discMat = new THREE.MeshBasicMaterial({
                 color: 0x888888,
                 transparent: true,
-                opacity: 0,
-                side: THREE.DoubleSide
+                opacity: 0.001,
+                side: THREE.DoubleSide,
+                map: null
             });
-            const disc = new THREE.Mesh(discGeometry, discMaterial);
+            const disc = new THREE.Mesh(discGeo, discMat);
             disc.rotation.x = -Math.PI / 2;
             disc.position.y = 0.1;
-            propellerGroup.add(disc);
-            propellerGroup.userData.disc = disc;
+            disc.visible = false;  // Start invisible, show when spinning
+            propGroup.add(disc);
+            propGroup.userData.disc = disc;
 
-            this.propellers.push(propellerGroup);
-            this.mesh.add(propellerGroup);
+            this.propellers.push(propGroup);
+            this.mesh.add(propGroup);
         });
 
-        // Landing gear
-        const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8);
-        const legMaterial = new THREE.MeshStandardMaterial({
-            color: 0x555555,
-            metalness: 0.5,
-            roughness: 0.5
-        });
-
+        // === LANDING GEAR ===
+        const legMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+        const legGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8);
+        const footGeo = new THREE.SphereGeometry(0.15, 8, 8);
+        
         const legPositions = [
             { x: 1, z: 0.8 },
             { x: -1, z: 0.8 },
@@ -174,43 +140,39 @@ export class Drone {
         ];
 
         legPositions.forEach(pos => {
-            const leg = new THREE.Mesh(legGeometry, legMaterial);
+            const leg = new THREE.Mesh(legGeo, legMat);
             leg.position.set(pos.x, -1, pos.z);
-            leg.castShadow = true;
             this.mesh.add(leg);
 
-            // Foot
-            const footGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-            const foot = new THREE.Mesh(footGeometry, legMaterial);
+            const foot = new THREE.Mesh(footGeo, legMat);
             foot.position.set(pos.x, -1.6, pos.z);
-            foot.castShadow = true;
             this.mesh.add(foot);
         });
 
-        // LED lights
-        const ledGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        // === LED LIGHTS ===
+        const ledGeo = new THREE.SphereGeometry(0.1, 8, 8);
         
         // Front LEDs (green)
-        const greenLedMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        const frontLeftLed = new THREE.Mesh(ledGeometry, greenLedMaterial);
+        const greenMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const frontLeftLed = new THREE.Mesh(ledGeo, greenMat);
         frontLeftLed.position.set(0.8, 0, 1);
         this.mesh.add(frontLeftLed);
         
-        const frontRightLed = new THREE.Mesh(ledGeometry, greenLedMaterial);
+        const frontRightLed = new THREE.Mesh(ledGeo, greenMat);
         frontRightLed.position.set(-0.8, 0, 1);
         this.mesh.add(frontRightLed);
 
         // Rear LEDs (red)
-        const redLedMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const rearLeftLed = new THREE.Mesh(ledGeometry, redLedMaterial);
+        const redMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const rearLeftLed = new THREE.Mesh(ledGeo, redMat);
         rearLeftLed.position.set(0.8, 0, -1);
         this.mesh.add(rearLeftLed);
         
-        const rearRightLed = new THREE.Mesh(ledGeometry, redLedMaterial);
+        const rearRightLed = new THREE.Mesh(ledGeo, redMat);
         rearRightLed.position.set(-0.8, 0, -1);
         this.mesh.add(rearRightLed);
 
-        // Add point lights for LEDs
+        // LED point lights for glow effect
         const greenLight = new THREE.PointLight(0x00ff00, 0.5, 5);
         greenLight.position.set(0, 0, 1);
         this.mesh.add(greenLight);
@@ -219,118 +181,94 @@ export class Drone {
         redLight.position.set(0, 0, -1);
         this.mesh.add(redLight);
         
-        // Headlight / Spotlight (flashlight style)
-        this.headlightOn = false;
+        // === HEADLIGHT ===
+        // Headlight housing
+        const hlHousingGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.15, 12);
+        const hlHousingMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const hlHousing = new THREE.Mesh(hlHousingGeo, hlHousingMat);
+        hlHousing.rotation.x = Math.PI / 2;
+        hlHousing.position.set(0, -0.6, 1.45);
+        this.mesh.add(hlHousing);
         
-        // Main spotlight - powerful beam
-        this.spotlight = new THREE.SpotLight(0xffffff, 0, 150, Math.PI / 8, 0.3, 1.5);
-        this.spotlight.position.set(0, -0.6, 1.3);
-        this.spotlight.castShadow = true;
-        this.spotlight.shadow.mapSize.width = 1024;
-        this.spotlight.shadow.mapSize.height = 1024;
-        this.spotlight.shadow.camera.near = 1;
-        this.spotlight.shadow.camera.far = 100;
-        this.mesh.add(this.spotlight);
-        
-        // Spotlight target
-        this.spotlightTarget = new THREE.Object3D();
-        this.spotlightTarget.position.set(0, -20, 50);
-        this.mesh.add(this.spotlightTarget);
-        this.spotlight.target = this.spotlightTarget;
-        
-        // Secondary fill light for realistic effect
-        this.fillLight = new THREE.SpotLight(0xffffee, 0, 80, Math.PI / 5, 0.5, 2);
-        this.fillLight.position.set(0, -0.6, 1.3);
-        this.mesh.add(this.fillLight);
-        this.fillLight.target = this.spotlightTarget;
-        
-        // Headlight housing/lens mesh
-        const headlightHousingGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.15, 16);
-        const headlightHousingMat = new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            metalness: 0.8,
-            roughness: 0.2
-        });
-        const headlightHousing = new THREE.Mesh(headlightHousingGeo, headlightHousingMat);
-        headlightHousing.rotation.x = Math.PI / 2;
-        headlightHousing.position.set(0, -0.6, 1.45);
-        this.mesh.add(headlightHousing);
-        
-        // Headlight lens
-        this.headlightLensGeo = new THREE.CircleGeometry(0.16, 16);
-        this.headlightLensMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
-        this.headlightLens = new THREE.Mesh(this.headlightLensGeo, this.headlightLensMat);
+        // Headlight lens (changes color when on)
+        const hlLensGeo = new THREE.CircleGeometry(0.16, 12);
+        this.headlightLensMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+        this.headlightLens = new THREE.Mesh(hlLensGeo, this.headlightLensMat);
         this.headlightLens.position.set(0, -0.6, 1.53);
         this.mesh.add(this.headlightLens);
+        
+        // Spotlight for headlight beam
+        this.headlight = new THREE.SpotLight(0xffffff, 0, 100, Math.PI / 6, 0.5, 1);
+        this.headlight.position.set(0, -0.6, 1.5);
+        this.mesh.add(this.headlight);
+        
+        // Headlight target (where the light points)
+        this.headlightTarget = new THREE.Object3D();
+        this.headlightTarget.position.set(0, -30, 80);
+        this.mesh.add(this.headlightTarget);
+        this.headlight.target = this.headlightTarget;
 
-        this.mesh.castShadow = true;
+        // Add drone to scene
         this.scene.add(this.mesh);
+        console.log('Drone: Created successfully');
     }
     
     toggleHeadlight() {
         this.headlightOn = !this.headlightOn;
         
         if (this.headlightOn) {
-            // Turn on - bright flashlight effect
-            this.spotlight.intensity = 8;
-            this.fillLight.intensity = 3;
+            this.headlight.intensity = 5;
             this.headlightLensMat.color.setHex(0xffffee);
-            this.headlightLensMat.emissive = new THREE.Color(0xffffee);
         } else {
-            // Turn off
-            this.spotlight.intensity = 0;
-            this.fillLight.intensity = 0;
-            this.headlightLensMat.color.setHex(0x333333);
-            this.headlightLensMat.emissive = new THREE.Color(0x000000);
+            this.headlight.intensity = 0;
+            this.headlightLensMat.color.setHex(0x444444);
         }
         
+        console.log('Headlight:', this.headlightOn ? 'ON' : 'OFF');
         return this.headlightOn;
     }
 
     update(delta) {
-        // Clamp delta to prevent physics explosion
         delta = Math.min(delta, 0.05);
         
-        // Apply gravity with hover compensation
+        // Gravity
         if (!this.isThrottleActive && this.mesh.position.y > this.minAltitude) {
             this.velocity.y -= this.gravity * delta;
         } else if (this.isThrottleActive) {
-            // Slight gravity still applies when throttle is active for realism
             this.velocity.y -= this.gravity * delta * 0.3;
         }
         
-        // Air resistance (more resistance at higher speeds)
+        // Air resistance
         const speedFactor = this.velocity.length() / this.maxSpeed;
-        const currentAirResistance = this.airResistance - (speedFactor * 0.05);
-        this.velocity.x *= currentAirResistance;
-        this.velocity.z *= currentAirResistance;
-        this.velocity.y *= 0.95; // Vertical damping
+        const resistance = this.airResistance - (speedFactor * 0.05);
+        this.velocity.x *= resistance;
+        this.velocity.z *= resistance;
+        this.velocity.y *= 0.95;
 
         // Apply velocity
         this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
 
-        // Ground collision with bounce
+        // Ground collision
         if (this.mesh.position.y < this.minAltitude) {
             this.mesh.position.y = this.minAltitude;
-            this.velocity.y = Math.abs(this.velocity.y) * 0.3; // Small bounce
+            this.velocity.y = Math.abs(this.velocity.y) * 0.3;
             if (this.velocity.y < 1) this.velocity.y = 0;
         }
         
-        // Max altitude limit
+        // Max altitude
         if (this.mesh.position.y > this.maxAltitude) {
             this.mesh.position.y = this.maxAltitude;
             this.velocity.y = Math.min(0, this.velocity.y);
         }
 
-        // Apply horizontal deceleration
+        // Deceleration
         this.velocity.x *= this.deceleration;
         this.velocity.z *= this.deceleration;
         
-        // Stop very small velocities
         if (Math.abs(this.velocity.x) < 0.01) this.velocity.x = 0;
         if (Math.abs(this.velocity.z) < 0.01) this.velocity.z = 0;
 
-        // Update propeller rotation based on throttle and movement
+        // Propeller animation
         const speed = this.velocity.length();
         const baseSpeed = this.mesh.position.y > this.minAltitude + 1 ? 40 : 20;
         const targetPropSpeed = baseSpeed + speed * 1.5 + (this.isThrottleActive ? 20 : 0);
@@ -340,55 +278,49 @@ export class Drone {
             const direction = index % 2 === 0 ? 1 : -1;
             propeller.rotation.y += this.propellerSpeed * delta * direction;
             
-            // Update blur disc opacity based on speed
             const disc = propeller.userData.disc;
-            if (disc) {
-                disc.material.opacity = Math.min(0.4, this.propellerSpeed / 80);
+            if (disc && disc.material) {
+                const targetOpacity = Math.min(0.4, this.propellerSpeed / 80);
+                disc.visible = targetOpacity > 0.01;
+                if (disc.visible) {
+                    disc.material.opacity = targetOpacity;
+                }
             }
         });
 
-        // Realistic tilt based on movement direction and speed
+        // Tilt based on movement
         const forwardVel = this.getLocalVelocity();
         const horizontalSpeed = Math.sqrt(forwardVel.x ** 2 + forwardVel.z ** 2);
         const speedRatio = Math.min(horizontalSpeed / this.maxSpeed, 1);
         
-        // Calculate target tilt based on local velocity
-        // Forward/backward movement = pitch (rotation.x)
-        // Left/right movement = roll (rotation.z)
-        const tiltIntensity = 0.015 + speedRatio * 0.01; // More tilt at higher speeds
+        const tiltIntensity = 0.015 + speedRatio * 0.01;
         
-        let targetTiltX = forwardVel.z * tiltIntensity; // Pitch forward (nose down) when moving forward
-        let targetTiltZ = -forwardVel.x * tiltIntensity;  // Roll into turns
+        let targetTiltX = forwardVel.z * tiltIntensity;
+        let targetTiltZ = -forwardVel.x * tiltIntensity;
         
-        // Add extra tilt during acceleration (jerky movements)
         if (this.isThrottleActive) {
             targetTiltX *= 1.3;
             targetTiltZ *= 1.3;
         }
         
-        // Clamp to max tilt
         targetTiltX = THREE.MathUtils.clamp(targetTiltX, -this.maxTilt, this.maxTilt);
         targetTiltZ = THREE.MathUtils.clamp(targetTiltZ, -this.maxTilt, this.maxTilt);
         
-        // Smooth tilt interpolation (faster response, smooth recovery)
         this.currentTiltX += (targetTiltX - this.currentTiltX) * this.tiltSpeed;
         this.currentTiltZ += (targetTiltZ - this.currentTiltZ) * this.tiltSpeed;
         
         this.mesh.rotation.x = this.currentTiltX;
         this.mesh.rotation.z = this.currentTiltZ;
         
-        // Natural tilt recovery when not moving
         if (speed < 1) {
             this.mesh.rotation.x *= (1 - this.tiltRecovery);
             this.mesh.rotation.z *= (1 - this.tiltRecovery);
         }
         
-        // Reset throttle state (will be set by controls each frame)
         this.isThrottleActive = false;
     }
     
     getLocalVelocity() {
-        // Convert world velocity to local velocity
         const localVel = this.velocity.clone();
         const inverseRotation = -this.mesh.rotation.y;
         const cos = Math.cos(inverseRotation);
@@ -401,16 +333,13 @@ export class Drone {
     }
 
     applyForce(direction, delta) {
-        // Optimized: reuse vectors, cache sin/cos
         const yaw = this.mesh.rotation.y;
         const cosYaw = Math.cos(yaw);
         const sinYaw = Math.sin(yaw);
         
-        // Calculate world-space force from local direction
         const localForceX = direction.x * this.acceleration * delta;
         const localForceZ = direction.z * this.acceleration * delta;
         
-        // Transform to world space (rotation around Y axis)
         const worldForceX = localForceX * cosYaw + localForceZ * sinYaw;
         const worldForceZ = -localForceX * sinYaw + localForceZ * cosYaw;
         
@@ -418,9 +347,8 @@ export class Drone {
         this.velocity.z += worldForceZ;
         this.isThrottleActive = true;
 
-        // Clamp horizontal speed
-        const horizontalSpeedSq = this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z;
-        const maxSpeedSq = this.maxSpeed * this.maxSpeed;
+        const horizontalSpeedSq = this.velocity.x ** 2 + this.velocity.z ** 2;
+        const maxSpeedSq = this.maxSpeed ** 2;
         if (horizontalSpeedSq > maxSpeedSq) {
             const scale = this.maxSpeed / Math.sqrt(horizontalSpeedSq);
             this.velocity.x *= scale;
@@ -452,5 +380,7 @@ export class Drone {
         this.velocity.set(0, 0, 0);
         this.angularVelocity = 0;
         this.propellerSpeed = 0;
+        this.currentTiltX = 0;
+        this.currentTiltZ = 0;
     }
 }

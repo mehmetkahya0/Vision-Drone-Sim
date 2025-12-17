@@ -100,14 +100,15 @@ class DroneSimulator {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.5;
+        this.renderer.toneMappingExposure = 2.0;
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         document.body.appendChild(this.renderer.domElement);
         this.renderer.domElement.id = 'main-canvas';
 
         // Scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87CEEB);
-        this.scene.fog = new THREE.Fog(0x87CEEB, 500, 2000);
+        this.scene.fog = new THREE.Fog(0x87CEEB, 1000, 3000);
 
         // Third person camera (main view)
         this.mainCamera = new THREE.PerspectiveCamera(
@@ -220,6 +221,11 @@ class DroneSimulator {
         // Update fog
         this.scene.fog = new THREE.Fog(env.fogColor, env.fogNear, env.fogFar);
         
+        // Update ground color
+        if (this.world) {
+            this.world.setGroundColor(env.groundColor);
+        }
+        
         // Update ambient light
         if (this.ambientLight) {
             this.ambientLight.intensity = env.ambientIntensity;
@@ -235,13 +241,13 @@ class DroneSimulator {
         if (this.sunLight) {
             this.sunLight.intensity = env.sunIntensity;
             this.sunLight.color.setHex(env.sunColor);
+            this.sunLight.position.set(env.sunPosition.x, env.sunPosition.y, env.sunPosition.z);
             this.baseSunPosition = new THREE.Vector3(env.sunPosition.x, env.sunPosition.y, env.sunPosition.z);
         }
         
-        // Update renderer exposure based on environment
+        // Update renderer exposure and world settings based on environment
         if (env.name === 'Night City') {
             this.renderer.toneMappingExposure = 0.8;
-            // Increase street light intensity for night
             if (this.world) {
                 this.world.setStreetLightsIntensity(3.0);
                 this.world.setWindowEmissiveIntensity(1.5);
@@ -450,16 +456,16 @@ class DroneSimulator {
     }
 
     setupLighting() {
-        // Ambient light - brighter
-        this.ambientLight = new THREE.AmbientLight(0x606060, 1.2);
+        // Ambient light - much brighter for visibility
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
         this.scene.add(this.ambientLight);
 
         // Hemisphere light for natural sky lighting - brighter
-        this.hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x606060, 1.0);
+        this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
         this.scene.add(this.hemiLight);
 
-        // Main directional light (sun) - brighter
-        this.sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        // Main directional light (sun) - very bright
+        this.sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
         this.sunLight.position.set(100, 200, 100);
         this.baseSunPosition = new THREE.Vector3(100, 200, 100);
         this.sunLight.castShadow = true;
@@ -476,6 +482,8 @@ class DroneSimulator {
         // Add sun target for proper shadow direction
         this.sunLight.target = new THREE.Object3D();
         this.scene.add(this.sunLight.target);
+        
+        console.log('Lighting setup complete');
     }
 
     toggleDroneCamFullscreen() {
@@ -558,6 +566,7 @@ class DroneSimulator {
     renderDroneCam() {
         // Render drone camera view to render target
         this.renderer.setRenderTarget(this.droneCamRenderTarget);
+        this.renderer.clear();
         this.renderer.render(this.scene, this.droneCamera);
         this.renderer.setRenderTarget(null);
 

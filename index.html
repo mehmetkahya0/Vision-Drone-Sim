@@ -215,6 +215,17 @@
     }
     </script>
     
+    <script>
+        // Global error handler to show JS errors on screen
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            var errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.9);color:white;padding:20px;z-index:99999;font-family:monospace;max-width:80%;';
+            errorDiv.innerHTML = '<b>JS Error:</b><br>' + msg + '<br>at ' + url + ':' + lineNo;
+            document.body.appendChild(errorDiv);
+            return false;
+        };
+    </script>
+    
     <!-- TensorFlow.js and COCO-SSD for object detection -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
