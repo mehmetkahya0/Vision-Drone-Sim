@@ -10,6 +10,32 @@ class DroneSimulator {
     }
 
     init() {
+        // Performance monitoring
+        this.stats = {
+            fps: 0,
+            frameCount: 0,
+            lastTime: performance.now(),
+            avgFrameTime: 0,
+            memoryUsage: 0
+        };
+        
+        // Wind system
+        this.wind = {
+            direction: Math.random() * Math.PI * 2,
+            speed: Math.random() * 20 + 5,
+            gustStrength: 0,
+            gustDirection: 0,
+            gustTimer: 0,
+            maxGustInterval: 3000
+        };
+        
+        // Recording system
+        this.recording = {
+            isRecording: false,
+            frames: [],
+            maxFrames: 3600 // 1 minute at 60fps
+        };
+        
         // Environment presets
         this.environments = [
             {
@@ -22,8 +48,7 @@ class DroneSimulator {
                 sunIntensity: 2.0,
                 sunColor: 0xffffff,
                 sunPosition: { x: 100, y: 200, z: 100 },
-                groundColor: 0x3d6b35,
-                hdri: null
+                groundColor: 0x3d6b35
             },
             {
                 name: 'Sunset',
@@ -35,8 +60,7 @@ class DroneSimulator {
                 sunIntensity: 2.5,
                 sunColor: 0xff8844,
                 sunPosition: { x: 200, y: 50, z: 100 },
-                groundColor: 0x5a4a35,
-                hdri: null
+                groundColor: 0x5a4a35
             },
             {
                 name: 'Night City',
@@ -48,8 +72,7 @@ class DroneSimulator {
                 sunIntensity: 0.1,
                 sunColor: 0x4444aa,
                 sunPosition: { x: -100, y: 50, z: -100 },
-                groundColor: 0x1a1a2a,
-                hdri: null
+                groundColor: 0x1a1a2a
             },
             {
                 name: 'Overcast',
@@ -61,8 +84,7 @@ class DroneSimulator {
                 sunIntensity: 0.8,
                 sunColor: 0xcccccc,
                 sunPosition: { x: 50, y: 300, z: 50 },
-                groundColor: 0x4a5a4a,
-                hdri: null
+                groundColor: 0x4a5a4a
             },
             {
                 name: 'Desert',
@@ -74,8 +96,7 @@ class DroneSimulator {
                 sunIntensity: 3.0,
                 sunColor: 0xffffee,
                 sunPosition: { x: 0, y: 250, z: 50 },
-                groundColor: 0xc4a35a,
-                hdri: null
+                groundColor: 0xd4a574
             },
             {
                 name: 'Stormy',
@@ -87,8 +108,7 @@ class DroneSimulator {
                 sunIntensity: 0.4,
                 sunColor: 0x8899aa,
                 sunPosition: { x: 100, y: 150, z: 100 },
-                groundColor: 0x2a3a2a,
-                hdri: null
+                groundColor: 0x2a2a2a
             }
         ];
         this.currentEnvironmentIndex = 0;
@@ -168,6 +188,11 @@ class DroneSimulator {
         // Environment/Map switch
         this.controls.onSwitchEnvironment = () => {
             this.switchEnvironment();
+        };
+        
+        // Recording toggle
+        this.controls.onToggleRecording = () => {
+            this.toggleRecording();
         };
 
         // Camera follow settings - behind the drone
@@ -485,6 +510,119 @@ class DroneSimulator {
         
         console.log('Lighting setup complete');
     }
+    
+    updateStats(delta) {
+        this.stats.frameCount++;
+        this.stats.avgFrameTime = delta;
+        
+        const now = performance.now();
+        if (now - this.stats.lastTime >= 1000) {
+            this.stats.fps = this.stats.frameCount;
+            this.stats.frameCount = 0;
+            this.stats.lastTime = now;
+            
+            // Update performance HUD
+            const perfHud = document.getElementById('perf-hud');
+            if (perfHud) {
+                perfHud.innerHTML = `
+                    <div style="color: #0f0; font-size: 11px;">
+                        FPS: ${this.stats.fps}<br>
+                        Frame: ${(this.stats.avgFrameTime * 1000).toFixed(1)}ms<br>
+                        Drone: ${this.drone.mesh.position.toArray().map(v => v.toFixed(0)).join(', ')}<br>
+                        Wind: ${this.wind.speed.toFixed(1)}m/s
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    updateWind(delta) {
+        // Update wind gust
+        this.wind.gustTimer += delta * 1000;
+        if (this.wind.gustTimer > this.wind.maxGustInterval) {
+            this.wind.gustDirection = Math.random() * Math.PI * 2;
+            this.wind.gustStrength = Math.random() * 15;
+            this.wind.gustTimer = 0;
+            this.wind.maxGustInterval = Math.random() * 3000 + 2000;
+        }
+        
+        // Gradually change wind direction and speed
+        this.wind.speed += (Math.random() - 0.5) * 2 * delta;
+        this.wind.speed = THREE.MathUtils.clamp(this.wind.speed, 0, 40);
+        this.wind.direction += (Math.random() - 0.5) * 0.5 * delta;
+        
+        // Apply wind force to drone
+        if (this.wind.speed > 0.5) {
+            const windForce = new THREE.Vector3(
+                Math.cos(this.wind.direction) * this.wind.speed,
+                0,
+                Math.sin(this.wind.direction) * this.wind.speed
+            );
+            
+            // Apply gust
+            if (this.wind.gustStrength > 0) {
+                const gust = new THREE.Vector3(
+                    Math.cos(this.wind.gustDirection) * this.wind.gustStrength,
+                    Math.random() * this.wind.gustStrength * 0.5,
+                    Math.sin(this.wind.gustDirection) * this.wind.gustStrength
+                );
+                windForce.add(gust);
+            }
+            
+            // Apply damping to wind effect for high altitude
+            const altitudeFactor = Math.min(1.0, this.drone.mesh.position.y / 200);
+            windForce.multiplyScalar(altitudeFactor * 0.3);
+            this.drone.velocity.add(windForce.multiplyScalar(delta));
+        }
+    }
+    
+    toggleRecording() {
+        this.recording.isRecording = !this.recording.isRecording;
+        
+        if (this.recording.isRecording) {
+            this.recording.frames = [];
+            this.showNotification('🔴 RECORDING STARTED');
+            console.log('Recording started');
+        } else {
+            this.showNotification(`⏹️ RECORDING SAVED (${this.recording.frames.length} frames)`);
+            console.log('Recording stopped', this.recording.frames.length, 'frames');
+            this.saveRecording();
+        }
+    }
+    
+    saveRecording() {
+        if (this.recording.frames.length === 0) return;
+        
+        // Create a CSV export of the recording
+        let csv = 'Time,X,Y,Z,VelX,VelY,VelZ,Rotation,Speed\n';
+        let time = 0;
+        this.recording.frames.forEach(frame => {
+            const speed = Math.sqrt(frame.vel.x ** 2 + frame.vel.z ** 2);
+            csv += `${time.toFixed(3)},${frame.pos.x.toFixed(2)},${frame.pos.y.toFixed(2)},${frame.pos.z.toFixed(2)},${frame.vel.x.toFixed(2)},${frame.vel.y.toFixed(2)},${frame.vel.z.toFixed(2)},${frame.rot.toFixed(3)},${speed.toFixed(2)}\n`;
+            time += 1/60;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `drone-flight-${Date.now()}.csv`;
+        a.click();
+    }
+    
+    recordFrame() {
+        if (!this.recording.isRecording) return;
+        if (this.recording.frames.length >= this.recording.maxFrames) {
+            this.toggleRecording();
+            return;
+        }
+        
+        this.recording.frames.push({
+            pos: this.drone.mesh.position.clone(),
+            vel: this.drone.velocity.clone(),
+            rot: this.drone.mesh.rotation.y
+        });
+    }
 
     toggleDroneCamFullscreen() {
         this.droneCamFullscreen = !this.droneCamFullscreen;
@@ -561,6 +699,21 @@ class DroneSimulator {
         this.hudElements.speed.textContent = speed.toFixed(1);
         this.hudElements.position.textContent = `${pos.x.toFixed(0)}, ${pos.z.toFixed(0)}`;
         this.hudElements.heading.textContent = ((heading + 360) % 360).toFixed(0);
+        
+        // Update battery
+        const batteryEl = document.getElementById('battery');
+        if (batteryEl) {
+            batteryEl.textContent = Math.max(0, this.drone.battery.level).toFixed(0);
+            
+            // Change color based on battery level
+            if (this.drone.battery.level < 20) {
+                batteryEl.style.color = '#ff0000';
+            } else if (this.drone.battery.level < 50) {
+                batteryEl.style.color = '#ffff00';
+            } else {
+                batteryEl.style.color = '#00ff00';
+            }
+        }
     }
 
     renderDroneCam() {
@@ -654,9 +807,18 @@ class DroneSimulator {
 
         const delta = this.clock.getDelta();
 
+        // Update performance stats
+        this.updateStats(delta);
+        
+        // Update wind system
+        this.updateWind(delta);
+
         // Update controls and drone physics
         this.controls.update(delta);
         this.drone.update(delta);
+        
+        // Record flight data
+        this.recordFrame();
 
         // Update third person camera
         this.updateCamera();

@@ -20,6 +20,14 @@ export class Drone {
         this.minAltitude = 2;
         this.maxAltitude = 500;
         
+        // Enhanced physics
+        this.momentum = new THREE.Vector3(); // Momentum for smooth acceleration
+        this.angularMomentum = 0;
+        this.mass = 1.2; // Drone mass for realistic inertia
+        this.dragCoefficient = 0.08; // Air drag
+        this.inertia = 0.7; // Rotational inertia
+        this.brakingForce = 0.15; // Braking efficiency
+        
         // Tilt settings
         this.tiltRecovery = 0.03;
         this.maxTilt = 0.5;
@@ -30,6 +38,13 @@ export class Drone {
         // State
         this.isThrottleActive = false;
         this.headlightOn = false;
+        
+        // Battery simulation
+        this.battery = {
+            level: 100,
+            drainRate: 0.005, // % per second
+            drainMultiplier: 1.0 // Higher when moving
+        };
         
         this.createDrone();
     }
@@ -114,7 +129,7 @@ export class Drone {
                 transparent: true,
                 opacity: 0.001,
                 side: THREE.DoubleSide,
-                map: null
+                map: undefined
             });
             const disc = new THREE.Mesh(discGeo, discMat);
             disc.rotation.x = -Math.PI / 2;
@@ -231,16 +246,28 @@ export class Drone {
     update(delta) {
         delta = Math.min(delta, 0.05);
         
-        // Gravity
+        // Battery drain
+        const speed = this.velocity.length();
+        this.battery.drainMultiplier = 1.0 + (speed / this.maxSpeed) * 0.5 + (this.isThrottleActive ? 0.3 : 0);
+        this.battery.level -= this.battery.drainRate * delta * this.battery.drainMultiplier;
+        this.battery.level = Math.max(0, this.battery.level);
+        
+        // Battery affects performance when low
+        const batteryFactor = this.battery.level > 20 ? 1.0 : 0.3 + (this.battery.level / 20) * 0.7;
+        
+        // Gravity with battery factor
         if (!this.isThrottleActive && this.mesh.position.y > this.minAltitude) {
-            this.velocity.y -= this.gravity * delta;
+            this.velocity.y -= this.gravity * delta * batteryFactor;
         } else if (this.isThrottleActive) {
-            this.velocity.y -= this.gravity * delta * 0.3;
+            this.velocity.y -= this.gravity * delta * 0.3 * batteryFactor;
         }
         
-        // Air resistance
-        const speedFactor = this.velocity.length() / this.maxSpeed;
-        const resistance = this.airResistance - (speedFactor * 0.05);
+        // Drag coefficient - increases with speed
+        const speedFactor = speed / this.maxSpeed;
+        const dragForce = this.dragCoefficient * speedFactor * speedFactor;
+        
+        // Air resistance with momentum smoothing
+        const resistance = Math.pow(this.airResistance, delta) - (speedFactor * dragForce * delta);
         this.velocity.x *= resistance;
         this.velocity.z *= resistance;
         this.velocity.y *= 0.95;
@@ -248,28 +275,33 @@ export class Drone {
         // Apply velocity
         this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
 
-        // Ground collision
+        // Smooth ground collision with bounce
         if (this.mesh.position.y < this.minAltitude) {
             this.mesh.position.y = this.minAltitude;
-            this.velocity.y = Math.abs(this.velocity.y) * 0.3;
-            if (this.velocity.y < 1) this.velocity.y = 0;
+            const bounceReduction = 0.2;
+            this.velocity.y = Math.abs(this.velocity.y) * bounceReduction;
+            if (this.velocity.y < 0.5) this.velocity.y = 0;
         }
         
-        // Max altitude
+        // Max altitude constraint
         if (this.mesh.position.y > this.maxAltitude) {
             this.mesh.position.y = this.maxAltitude;
             this.velocity.y = Math.min(0, this.velocity.y);
         }
 
-        // Deceleration
-        this.velocity.x *= this.deceleration;
-        this.velocity.z *= this.deceleration;
+        // Velocity clamping for stability
+        const horizontalSpeed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
+        if (horizontalSpeed > this.maxSpeed) {
+            const scale = this.maxSpeed / horizontalSpeed;
+            this.velocity.x *= scale;
+            this.velocity.z *= scale;
+        }
         
-        if (Math.abs(this.velocity.x) < 0.01) this.velocity.x = 0;
-        if (Math.abs(this.velocity.z) < 0.01) this.velocity.z = 0;
+        if (Math.abs(this.velocity.y) > this.maxVerticalSpeed) {
+            this.velocity.y = Math.sign(this.velocity.y) * this.maxVerticalSpeed;
+        }
 
-        // Propeller animation
-        const speed = this.velocity.length();
+        // Propeller animation based on altitude and speed
         const baseSpeed = this.mesh.position.y > this.minAltitude + 1 ? 40 : 20;
         const targetPropSpeed = baseSpeed + speed * 1.5 + (this.isThrottleActive ? 20 : 0);
         this.propellerSpeed += (targetPropSpeed - this.propellerSpeed) * 0.15;
@@ -288,10 +320,10 @@ export class Drone {
             }
         });
 
-        // Tilt based on movement
+        // Natural tilt based on movement direction and speed
         const forwardVel = this.getLocalVelocity();
-        const horizontalSpeed = Math.sqrt(forwardVel.x ** 2 + forwardVel.z ** 2);
-        const speedRatio = Math.min(horizontalSpeed / this.maxSpeed, 1);
+        const horizontalVel = Math.sqrt(forwardVel.x ** 2 + forwardVel.z ** 2);
+        const speedRatio = Math.min(horizontalVel / this.maxSpeed, 1);
         
         const tiltIntensity = 0.015 + speedRatio * 0.01;
         
@@ -312,6 +344,7 @@ export class Drone {
         this.mesh.rotation.x = this.currentTiltX;
         this.mesh.rotation.z = this.currentTiltZ;
         
+        // Natural recovery when not moving
         if (speed < 1) {
             this.mesh.rotation.x *= (1 - this.tiltRecovery);
             this.mesh.rotation.z *= (1 - this.tiltRecovery);

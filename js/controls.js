@@ -5,6 +5,7 @@ export class Controls {
         this.onToggleDroneCam = null; // Callback for drone cam toggle
         this.onToggleHeadlight = null; // Callback for headlight toggle
         this.onSwitchEnvironment = null; // Callback for environment switch
+        this.onToggleRecording = null; // Callback for recording toggle
         
         this.setupEventListeners();
     }
@@ -33,6 +34,14 @@ export class Controls {
             if (e.code === 'KeyM') {
                 if (this.onSwitchEnvironment) {
                     this.onSwitchEnvironment();
+                }
+                e.preventDefault();
+            }
+            
+            // Toggle recording
+            if (e.code === 'KeyV') {
+                if (this.onToggleRecording) {
+                    this.onToggleRecording();
                 }
                 e.preventDefault();
             }

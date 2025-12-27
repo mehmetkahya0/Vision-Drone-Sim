@@ -167,8 +167,8 @@ export class World {
     }
     
     addWindowsToBuilding(building, width, height, depth) {
-        const windowOnMat = new THREE.MeshBasicMaterial({ color: 0xffffaa });
-        const windowOffMat = new THREE.MeshBasicMaterial({ color: 0x334455 });
+        const windowOnMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, map: undefined });
+        const windowOffMat = new THREE.MeshBasicMaterial({ color: 0x334455, map: undefined });
         const windowSize = 2;
         const spacing = 5;
         
@@ -236,7 +236,7 @@ export class World {
                 // Windows for cars
                 if (vType.type === 'car') {
                     const windowGeo = new THREE.BoxGeometry(vType.w * 0.9, vType.h * 0.4, vType.l * 0.4);
-                    const windowMat = new THREE.MeshBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.7, map: null });
+                    const windowMat = new THREE.MeshBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.7, map: undefined });
                     const windows = new THREE.Mesh(windowGeo, windowMat);
                     windows.position.y = vType.h + 0.2;
                     vehicle.add(windows);
